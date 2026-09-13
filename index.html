@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markdown → LinkedIn Post Editor</title>
+<style>
+  :root {
+    --bg: #f3f6fb;
+    --panel: #ffffff;
+    --border: #e2e8f0;
+    --text: #1a2233;
+    --muted: #64748b;
+    --accent: #0a66c2;
+    --accent-dark: #0a52a8;
+    --danger: #d93025;
+    --ok: #188038;
+    --code-bg: #f1f5f9;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 22px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header h1 .logo {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+  }
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  button, select {
+    font: inherit;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { background: #f8fafc; border-color: #cbd5e1; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  button.primary:hover { background: var(--accent-dark); }
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    padding: 20px;
+    max-width: 1500px;
+    margin: 0 auto;
+  }
+  .pane {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: calc(100vh - 160px);
+    overflow: hidden;
+  }
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+  }
+  .fmtbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbfd;
+    flex-wrap: wrap;
+  }
+  .fmtbar .sep {
+    width: 1px;
+    height: 18px;
+    background: var(--border);
+    margin: 0 5px;
+  }
+  .fmtbar button {
+    padding: 5px 10px;
+    font-size: 13px;
+    border-radius: 6px;
+    min-width: 30px;
+    white-space: nowrap;
+  }
+  .fmtbar button.active {
+    background: #dbeafe;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  textarea {
+    flex: 1;
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 16px;
+    font: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+    background: transparent;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  #output {
+    font-family: inherit;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    flex-wrap: wrap;
+  }
+  .count { font-weight: 700; }
+  .count.over { color: var(--danger); }
+  .bar {
+    flex: 1;
+    min-width: 120px;
+    height: 6px;
+    border-radius: 3px;
+    background: #e6ebf2;
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--ok);
+    border-radius: 3px;
+    transition: width .15s, background .15s;
+  }
+  .bar.over > span { background: var(--danger); }
+  .toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1a2233;
+    color: #fff;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .hint { font-size: 11px; }
+  kbd {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+  }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; padding: 12px; }
+    .pane { height: 46vh; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="logo">Md</span> Markdown → LinkedIn Post Editor</h1>
+  <div class="toolbar">
+    <label class="hint" for="linkStyle">Links:</label>
+    <select id="linkStyle">
+      <option value="domain" selected>text — domain.com</option>
+      <option value="url">text — full URL</option>
+      <option value="markdown">text (url)</option>
+      <option value="bare">bare URL only</option>
+    </select>
+    <button id="sampleBtn">Load sample</button>
+    <button id="clearBtn">Clear</button>
+    <button id="copyBtn" class="primary">Copy output</button>
+  </div>
+</header>
+
+<main>
+  <section class="pane">
+    <div class="pane-header">
+      <span>Markdown input</span>
+      <span class="hint"><b>*</b><i>i</i><u>u</u> · <kbd>⌘/Ctrl</kbd> shortcuts · select lines, then <b>•</b> List</span>
+    </div>
+    <div class="fmtbar" id="fmtbar">
+      <button type="button" data-do="undo" title="Undo (⌘/Ctrl+Z)">⟲</button>
+      <button type="button" data-do="redo" title="Redo (⌘/Ctrl+Shift+Z)">⟳</button>
+      <span class="sep"></span>
+      <button type="button" data-do="bold" title="Bold (⌘/Ctrl+B)"><b>B</b></button>
+      <button type="button" data-do="italic" title="Italic (⌘/Ctrl+I)"><i>I</i></button>
+      <button type="button" data-do="underline" title="Underline (⌘/Ctrl+U)"><u>U</u></button>
+      <button type="button" data-do="strike" title="Strikethrough"><s>S</s></button>
+      <span class="sep"></span>
+      <button type="button" data-do="heading" title="Heading (# )">H</button>
+      <button type="button" data-do="quote" title="Blockquote">❝</button>
+      <button type="button" data-do="bullet" title="Bullet list (selected lines)">•</button>
+      <button type="button" data-do="number" title="Numbered list (selected lines)">1.</button>
+      <span class="sep"></span>
+      <button type="button" data-do="code" title="Inline code">&lt;&gt;</button>
+      <button type="button" data-do="link" title="Insert link (⌘/Ctrl+K)">🔗</button>
+    </div>
+    <textarea id="input" spellcheck="true" placeholder="Write or paste your markdown here.&#10;&#10;# A heading&#10;Some **bold**, *italic* and ++underline++ text:&#10;&#10;[Visit an article](https://example.com/article)&#10;&#10;- a bullet point&#10;- another bullet point&#10;&#10;"></textarea>
+    <div class="statusbar">
+      <button id="downloadMdBtn">Download .md</button>
+      <span class="hint">Bold <kbd>**</kbd> · Italic <kbd>*</kbd> · Underline <kbd>++</kbd> · <kbd>⌘/Ctrl+Enter</kbd> copy</span>
+    </div>
+  </section>
+
+  <section class="pane">
+    <div class="pane-header">
+      <span>LinkedIn-compatible text</span>
+      <span>headings → bold, links expanded</span>
+    </div>
+    <textarea id="output" readonly spellcheck="false" placeholder="Converted text appears here…"></textarea>
+    <div class="statusbar">
+      <span class="count" id="count">0 / 3000</span>
+      <div class="bar" id="bar"><span></span></div>
+      <button id="downloadTxtBtn">Download .txt</button>
+      <button id="copyPostBtn" class="primary">Copy Post</button>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX = 3000; // LinkedIn text-post character limit
+
+  var $ = function (id) { return document.getElementById(id); };
+  var inputEl = $("input");
+  var outputEl = $("output");
+  var countEl = $("count");
+  var barEl = $("bar");
+  var linkStyle = $("linkStyle");
+
+  // ---- undo / redo history ----
+  var history = [];
+  var histIndex = -1;
+
+  function saveState() {
+    history = history.slice(0, histIndex + 1);
+    history.push({
+      v: inputEl.value,
+      s: inputEl.selectionStart,
+      e: inputEl.selectionEnd
+    });
+    if (history.length > 200) history.shift();
+    histIndex = history.length - 1;
+    $("undoBtn") && ($("undoBtn").disabled = histIndex <= 0);
+    $("redoBtn") && ($("redoBtn").disabled = histIndex >= history.length - 1);
+  }
+
+  function restore(snap) {
+    inputEl.value = snap.v;
+    inputEl.setSelectionRange(snap.s, snap.e);
+    update();
+  }
+
+  function undo() {
+    if (histIndex > 0) { histIndex--; restore(history[histIndex]); }
+  }
+
+  function redo() {
+    if (histIndex < history.length - 1) { histIndex++; restore(history[histIndex]); }
+  }
+
+  // give the undo/redo buttons ids so we can enable/disable them
+  document.querySelectorAll("[data-do='undo'],[data-do='redo']").forEach(function (b) {
+    b.id = "undoBtn" + (b.dataset.do === "undo" ? "" : "X");
+    b.id = b.dataset.do + "Btn";
+  });
+  var undoBtn = $("undoBtn");
+  var redoBtn = $("redoBtn");
+
+  // ---- toast ----
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 1800);
+  }
+
+  // ---- link helpers ----
+  function hostname(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ""); }
+    catch (e) { return url; }
+  }
+
+  function formatLink(text, url) {
+    var style = linkStyle.value;
+    if (style === "markdown") return text + " (" + url + ")";
+    if (style === "bare") return url;
+    if (style === "url") return text + " — " + url;
+    return text + " — " + hostname(url);
+  }
+
+  // ---- markdown -> plain text ----
+  function convert(md) {
+    md = md.replace(/\r\n/g, "\n");
+    var lines = md.split("\n");
+    var out = [];
+    var inFence = false;
+    var fenceChar = null;
+    var para = [];
+
+    function flushPara() {
+      if (para.length === 0) return;
+      out.push(inline(para.join(" ")));
+      para = [];
+    }
+
+    for (var i = 0; i < lines.length; i++) {
+      var raw = lines[i];
+      var line = raw;
+
+      var fenceMatch = line.match(/^\s*(```+|~~~+)/);
+      if (fenceMatch && fenceChar === null) {
+        flushPara();
+        fenceChar = fenceMatch[1][0];
+        inFence = true;
+        continue;
+      }
+      if (inFence) {
+        var close = raw.match(/^\s*(```+|~~~+)/);
+        if (close && close[1][0] === fenceChar) {
+          inFence = false;
+          fenceChar = null;
+          continue;
+        }
+        para.push(raw);
+        continue;
+      }
+
+      var trimmed = raw.trim();
+
+      if (trimmed === "") {
+        flushPara();
+        continue;
+      }
+
+      // heading -> bold
+      var h = trimmed.match(/^#{1,6}\s+(.*)$/);
+      if (h) {
+        flushPara();
+        out.push("**" + inline(h[1]) + "**");
+        continue;
+      }
+
+      // horizontal rule
+      if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+        flushPara();
+        out.push("━━━━━━━━━━━━━━");
+        continue;
+      }
+
+      // blockquote
+      if (/^>\s?/.test(trimmed)) {
+        flushPara();
+        out.push(inline(trimmed.replace(/^>\s?/, "")));
+        continue;
+      }
+
+      // unordered list
+      var ul = trimmed.match(/^([-+*])\s+(.*)$/);
+      if (ul) {
+        flushPara();
+        out.push("• " + inline(ul[2]));
+        continue;
+      }
+
+      // ordered list
+      var ol = trimmed.match(/^\d+[.)]\s+(.*)$/);
+      if (ol) {
+        flushPara();
+        out.push("• " + inline(ol[1]));
+        continue;
+      }
+
+      para.push(raw);
+    }
+    if (inFence) flushPara();
+    flushPara();
+
+    return collapseSpaces(out.join("\n"));
+  }
+
+  function inline(s) {
+    s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (m, alt, url) {
+      return formatLink(alt || "image", url);
+    });
+    s = s.replace(/\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, function (m, text, url) {
+      return formatLink(text || url, url);
+    });
+    s = s.replace(/\+\+([^+]+)\+\+/g, "$1");          // underline
+    s = s.replace(/~~([^~]+)~~/g, "$1");              // strikethrough
+    s = s.replace(/`([^`]+)`/g, "$1");                // inline code
+    s = s.replace(/\*\*([^*]+)\*\*/g, "$1");          // bold
+    s = s.replace(/__([^_]+)__/g, "$1");              // bold
+    s = s.replace(/(^|[^*])\*([^*\s][^*]*?[^*\s])\*(?!\*)/g, "$1$2"); // italic
+    s = s.replace(/(^|[^_])_([^_\s][^_]*?[^_\s])_(?!_)/g, "$1$2");    // italic
+    s = s.replace(/\[([^\]]+)\]\[[^\]]+\]/g, "$1");   // reference-style
+    return s;
+  }
+
+  function collapseSpaces(text) {
+    return text.replace(/\n{3,}/g, "\n\n").replace(/[ \t]+\n/g, "\n");
+  }
+
+  // ---- render pipeline ----
+  function update() {
+    var result = convert(inputEl.value);
+    outputEl.value = result;
+    var n = result.length;
+    countEl.textContent = n + " / " + MAX;
+    countEl.classList.toggle("over", n > MAX);
+    barEl.classList.toggle("over", n > MAX);
+    barEl.querySelector("span").style.width = Math.min(100, (n / MAX) * 100) + "%";
+    refreshActive();
+  }
+
+  function copy() {
+    if (!outputEl.value.trim()) { toast("Nothing to copy"); return; }
+    var done = function () { toast("Copied to clipboard"); };
+    var fb = function () {
+      outputEl.select();
+      try { document.execCommand("copy"); done(); }
+      catch (e) { toast("Press ⌘/Ctrl+C to copy"); }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(outputEl.value).then(done, fb);
+    } else { fb(); }
+  }
+
+  function download(filename, text) {
+    if (!text.trim()) { toast("Nothing to save"); return; }
+    var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast("Downloaded " + filename);
+  }
+
+  // ---- selection helpers ----
+  function getSel() {
+    return { v: inputEl.value, s: inputEl.selectionStart, e: inputEl.selectionEnd };
+  }
+
+  // wrap selection in prefix/suffix (toggles off if already wrapped)
+  function wrapToggle(prefix, suffix, placeholder) {
+    var sel = getSel();
+    var selected = sel.v.slice(sel.s, sel.e);
+
+    var newText, newStart, newEnd;
+    if (selected.length >= prefix.length + suffix.length &&
+        selected.indexOf(prefix) === 0 &&
+        selected.lastIndexOf(suffix) === selected.length - suffix.length) {
+      newText = selected.slice(prefix.length, selected.length - suffix.length);
+      newStart = sel.s;
+      newEnd = sel.s + newText.length;
+    } else if (sel.s === sel.e) {
+      newText = prefix + placeholder + suffix;
+      newStart = sel.s + prefix.length;
+      newEnd = newStart + placeholder.length;
+    } else {
+      newText = prefix + selected + suffix;
+      newStart = sel.s + prefix.length;
+      newEnd = newStart + selected.length;
+    }
+    inputEl.value = sel.v.slice(0, sel.s) + newText + sel.v.slice(sel.e);
+    inputEl.focus();
+    inputEl.setSelectionRange(newStart, newEnd);
+    saveState();
+    update();
+  }
+
+  // toggle a prefix on every line in the selection
+  function lineToggle(opts) {
+    var sel = getSel();
+    var v = sel.v;
+    var lineStart = v.lastIndexOf("\n", Math.max(0, sel.s - 1)) + 1;
+    var lineEnd = v.indexOf("\n", sel.e);
+    if (lineEnd === -1) lineEnd = v.length;
+    var block = v.slice(lineStart, lineEnd);
+    var lines = block.split("\n");
+    var remove = lines.length > 0 && lines.every(function (l) { return opts.removeRe.test(l); });
+    var out = lines.map(function (l) {
+      return remove ? l.replace(opts.removeRe, "") : opts.add + l;
+    });
+    var newBlock = out.join("\n");
+    inputEl.value = v.slice(0, lineStart) + newBlock + v.slice(lineEnd);
+    inputEl.focus();
+    inputEl.setSelectionRange(lineStart, lineStart + newBlock.length);
+    saveState();
+    update();
+  }
+
+  function insertLink() {
+    var sel = getSel();
+    var selected = sel.v.slice(sel.s, sel.e);
+    var insert = "[" + (selected || "text") + "](https://)";
+    inputEl.value = sel.v.slice(0, sel.s) + insert + sel.v.slice(sel.e);
+    inputEl.focus();
+    var pos = sel.s + selected.length + 2;
+    inputEl.setSelectionRange(pos, pos + 8);
+    saveState();
+    update();
+  }
+
+  function escapeReg(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  var actions = {
+    undo: undo,
+    redo: redo,
+    bold: function () { wrapToggle("**", "**", "bold"); },
+    italic: function () { wrapToggle("*", "*", "italic"); },
+    underline: function () { wrapToggle("++", "++", "underline"); },
+    strike: function () { wrapToggle("~~", "~~", "struck"); },
+    code: function () { wrapToggle("`", "`", "code"); },
+    heading: function () { lineToggle({ add: "# ", removeRe: /^[\t ]*#{1,6}[\t ]+/ }); },
+    quote: function () { lineToggle({ add: "> ", removeRe: /^[\t ]*>\s?/ }); },
+    bullet: function () { lineToggle({ add: "- ", removeRe: /^[\t ]*(?:-|\*|\+)[\t ]+/ }); },
+    number: function () { lineToggle({ add: "1. ", removeRe: /^[\t ]*\d+[.)][\t ]+/ }); },
+    link: insertLink
+  };
+
+  // toolbar clicks keep the textarea focused/selection intact
+  $("fmtbar").addEventListener("mousedown", function (e) {
+    if (e.target.closest("button")) e.preventDefault();
+  });
+  $("fmtbar").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-do]");
+    if (btn && actions[btn.dataset.do]) actions[btn.dataset.do]();
+  });
+
+  // ---- active style detection ----
+  function markerActive(marker) {
+    var sel = getSel();
+    if (sel.s !== sel.e) return false;
+    var before = sel.v.slice(0, sel.s);
+    var after = sel.v.slice(sel.e);
+    var open = before.lastIndexOf(marker);
+    if (open === -1) return false;
+    if (before.slice(open + marker.length).indexOf(marker) !== -1) return false;
+    return after.indexOf(marker) !== -1;
+  }
+
+  function italicActive() {
+    var sel = getSel();
+    if (sel.s !== sel.e) return false;
+    var before = sel.v.slice(0, sel.s);
+    var after = sel.v.slice(sel.e);
+    var idx = before.lastIndexOf("*");
+    while (idx !== -1) {
+      if (before[idx - 1] !== "*" && before[idx + 1] !== "*") {
+        var r = after.indexOf("*");
+        while (r !== -1) {
+          if (after[r - 1] !== "*" && after[r + 1] !== "*") return true;
+          r = after.indexOf("*", r + 1);
+        }
+        return false;
+      }
+      idx = before.lastIndexOf("*", idx - 1);
+    }
+    return false;
+  }
+
+  function refreshActive() {
+    var map = { bold: markerActive("**"), italic: italicActive(),
+                underline: markerActive("++"), strike: markerActive("~~") };
+    document.querySelectorAll("#fmtbar [data-do]").forEach(function (b) {
+      var on = b.dataset.do in map ? map[b.dataset.do] : false;
+      b.classList.toggle("active", on);
+    });
+  }
+
+  // ---- events ----
+  $("copyBtn").addEventListener("click", copy);
+  $("copyPostBtn").addEventListener("click", copy);
+  $("downloadMdBtn").addEventListener("click", function () {
+    download("post.md", inputEl.value);
+  });
+  $("downloadTxtBtn").addEventListener("click", function () {
+    download("post.txt", outputEl.value);
+  });
+  $("clearBtn").addEventListener("click", function () {
+    inputEl.value = "";
+    inputEl.focus();
+    saveState();
+    update();
+  });
+  $("sampleBtn").addEventListener("click", function () {
+    inputEl.value = sampleMarkdown;
+    inputEl.focus();
+    saveState();
+    update();
+  });
+
+  inputEl.addEventListener("input", function () { saveState(); update(); });
+  linkStyle.addEventListener("change", update);
+
+  document.addEventListener("keydown", function (e) {
+    var mod = e.metaKey || e.ctrlKey;
+    if (!mod) return;
+    var k = e.key.toLowerCase();
+    if (k === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
+    if (k === "z") { e.preventDefault(); undo(); return; }
+    if (k === "y") { e.preventDefault(); redo(); return; }
+    if (k === "b") { e.preventDefault(); wrapToggle("**", "**", "bold"); return; }
+    if (k === "i") { e.preventDefault(); wrapToggle("*", "*", "italic"); return; }
+    if (k === "u") { e.preventDefault(); wrapToggle("++", "++", "underline"); return; }
+    if (k === "k") { e.preventDefault(); insertLink(); return; }
+    if (e.key === "Enter") { e.preventDefault(); copy(); }
+  });
+
+  // ---- sample ----
+  var sampleMarkdown = "# Announcing our new product 🚀\n" +
+    "\n" +
+    "We're thrilled to [launch our latest release](https://example.com/blog/launch), built with care.\n" +
+    "\n" +
+    "**Highlights:**\n" +
+    "- A cleaner, faster UI\n" +
+    "- [Detailed docs](https://docs.example.com/getting-started)\n" +
+    "- Open source from day one\n" +
+    "\n" +
+    "> \"Shipped it.\" — the team\n" +
+    "\n" +
+    "Learn more: [example.com](https://example.com)\n";
+
+  inputEl.value = sampleMarkdown;
+  saveState();
+  update();
+})();
+</script>
+</body>
+</html>
