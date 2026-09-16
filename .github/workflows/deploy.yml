@@ -28,4 +28,4 @@ jobs:
             > .vercel/project.json
 
       - name: Deploy to production
-        run: vercel deploy --prod --yes --scope=${{ secrets.VERCEL_ORG_ID }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
