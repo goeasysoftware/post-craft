@@ -27,8 +27,5 @@ jobs:
             "${{ secrets.VERCEL_ORG_ID }}" "${{ secrets.VERCEL_PROJECT_ID }}" \
             > .vercel/project.json
 
-      - name: Pull environment
-        run: vercel pull --yes --environment=production --scope=${{ secrets.VERCEL_ORG_ID }} --token=${{ secrets.VERCEL_TOKEN }}
-
       - name: Deploy to production
         run: vercel deploy --prod --yes --scope=${{ secrets.VERCEL_ORG_ID }} --token=${{ secrets.VERCEL_TOKEN }}
